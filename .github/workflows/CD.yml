@@ -1,0 +1,59 @@
+name: Auto Deploy to FastAPI RMS
+
+on:
+  push:
+    branches:
+      - develop
+
+jobs:
+  deploy-dev:
+    name: Deploy to RMS DEV Server
+    if: github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v3
+
+      - name: Setup SSH Agent for DEV
+        uses: webfactory/ssh-agent@v0.7.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_DEV_PRIVATE_KEY }}
+
+      - name: Deploy to RMS DEV Server
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_DEV_USERNAME }}@${{ secrets.SSH_DEV_HOST }} -p ${{ secrets.SSH_DEV_PORT }} << 'EOF'
+            set -x
+            cd /home/fastapi-rms
+            git pull origin develop
+            source .venv/bin/activate
+            pip install -r requirements.txt
+            sudo systemctl stop fastapi-rms.service
+            sudo systemctl start fastapi-rms.service
+          EOF
+
+  deploy-prod:
+    name: Deploy to RMS PROD Server
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v3
+
+      - name: Setup SSH Agent for PROD
+        uses: webfactory/ssh-agent@v0.7.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PROD_PRIVATE_KEY }}
+
+      - name: Deploy to RMS PROD Server
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_PROD_USERNAME }}@${{ secrets.SSH_PROD_HOST }} -p ${{ secrets.SSH_PROD_PORT }} << 'EOF'
+            set -x
+            cd /home/fastapi-rms
+            git pull origin main
+            source .venv/bin/activate
+            pip install -r requirements.txt
+            sudo systemctl stop fastapi-rms.service
+            sudo systemctl start fastapi-rms.service
+          EOF
